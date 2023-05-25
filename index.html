@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrawEcharts</title>
+    <style>
+        #mychart{
+            width: 1000px;
+            height: 440px;
+        }
+    </style>
+</head>
+<body>
+    <div id="mychart"></div>
+    <button onclick="changetoFree()">自由线</button>
+    <button onclick="changetoStraight()">直线</button>
+    <button onclick="selectStart()">选择</button>
+    <button onclick="cancleSelect()">取消选择</button>
+    <button onclick="copyselect()">复制</button>
+    <button onclick="pasteStart()">粘贴</button>
+    <button onclick="reverse()">翻转</button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js"></script>
+    <script>
+        var myChart
+        var isFreeline=false//自由线还是直线
+        var startSelect=false//是否点击选择,点击后无法画线
+        var selectflag=false//选择的操作是否开始
+        var dragflag=false//判断点击还是拖拽
+        var timer=null//拖拽或者选择启动时的定时器
+        var lastitem=null//画线时上一次的点
+        var firstitem=null//画线时起始的点
+        var vismap={
+                show:false,
+                dimension:0,
+                seriesIndex:0,
+                pieces:[]
+            }
+        var piece={
+                lte:0,
+                gt:0,
+                color:'red'
+        }
+        var copydata=[]//被复制的数据，翻转的数据也是这个
+        var pasteflag=false//是否开始粘贴
+
+
+        drawchart()
+        var zr=myChart.getZr()
+        //通过zr获取的item,[x轴,y轴]
+        zr.on('click',(params)=>{
+            if (!startSelect) {//没开启选择,正常画线的点击修改
+                let point=[params.offsetX,params.offsetY]
+                let item=myChart.convertFromPixel({seriesIndex:0},point)
+                let option=myChart.getOption()
+                option.series[0].data[item[0]-1]=item[1]
+                myChart.setOption(option);
+                reset()
+            }
+            if (pasteflag) {//点击粘贴
+                cancleSelect()
+                let point=[params.offsetX,params.offsetY]
+                let item=myChart.convertFromPixel({seriesIndex:0},point)
+                let option=myChart.getOption()
+                for(let i=item[0];i<copydata.length+item[0];i++){
+                    option.series[0].data[i]=copydata[i-item[0]]
+                }
+                myChart.setOption(option);
+                pasteflag=false
+                reset()
+            }
+        })
+        zr.on('mousedown',(params)=>{
+            if (!startSelect) {//没开启选择，正常画线的拖拽修改开始
+                timer=setTimeout(()=>{
+                    dragflag=true
+                    let point=[params.offsetX,params.offsetY]
+                    let item=myChart.convertFromPixel({seriesIndex:0},point) 
+                    firstitem=item
+                },200)
+            }else{//开始选择
+                timer=setTimeout(()=>{
+                    selectflag=true
+                    let option=myChart.getOption()
+                    let point=[params.offsetX,params.offsetY]
+                    let item=myChart.convertFromPixel({seriesIndex:0},point) 
+                    piece.gt=item[0]//添加标记
+                },200)
+                
+            }
+           
+        })
+        zr.on('mousemove',(params)=>{
+            if (!startSelect) {
+                if (dragflag) {//画自由线
+                    let point=[params.offsetX,params.offsetY]
+                    let item=myChart.convertFromPixel({seriesIndex:0},point) 
+                    let option=myChart.getOption()
+                    if (isFreeline) {//如果是自由线
+                        option.series[0].data[item[0]-1]=item[1]
+                        if (lastitem!=null) {
+                            //补数据
+                            if (lastitem[0]-item[0]<-1) {//正向
+                                for(let i=lastitem[0];i<=item[0];i++){
+                                    option.series[0].data[i]=lastitem[1]
+                                }
+                            }else if (lastitem[0]-item[0]>1) {//反向
+                                for(let i=item[0];i<=lastitem[0];i++){
+                                    option.series[0].data[i]=lastitem[1]
+                                }
+                            }
+                        }
+                        myChart.setOption(option);
+                    }else{//只能画直线
+                        if (lastitem!=null) {
+                            if (lastitem[0]-item[0]<-1) {//正向
+                                for(let i=firstitem[0];i<=item[0];i++){
+                                    option.series[0].data[i]=getStraightY(firstitem[0],firstitem[1],item[0],item[1],i)
+                                }
+                            }else if (lastitem[0]-item[0]>1) {
+                                for(let i=item[0];i<=firstitem[0];i++){
+                                    option.series[0].data[i]=getStraightY(firstitem[0],firstitem[1],item[0],item[1],i)
+                                }
+                            }
+                        }
+                        myChart.setOption(option);
+                    }
+                    lastitem=item
+             }
+            }else{
+                if (selectflag) {//结束选择
+                    let option=myChart.getOption()
+                    let point=[params.offsetX,params.offsetY]
+                    let item=myChart.convertFromPixel({seriesIndex:0},point)
+                    piece.lte=item[0]
+                    vismap.pieces=[piece]
+                    option.visualMap=vismap
+                    let temppie={
+                        gt:option.visualMap.pieces[0].lte,
+                        color:'rgb(92,123,217)'
+                    }
+                    let temppie2={
+                        lte:option.visualMap.pieces[0].gt,
+                        color:'rgb(92,123,217)'
+                    }
+                    option.visualMap.pieces.push(temppie)
+                    option.visualMap.pieces.push(temppie2)
+                    myChart.setOption(option);
+                }
+                
+            }
+            
+        })
+        zr.on('mouseup',()=>{//清除各种操作记录
+            if (!startSelect) {
+                reset()
+            }else{
+                selectflag=false           
+            }     
+        })
+        function drawchart(data){        
+            myChart = echarts.init(document.getElementById('mychart'));
+            let xarr=[]
+            let yarr=[]
+            for(let i=0;i<=1000;i++){
+                xarr.push(i)
+                yarr.push(0)
+            }
+            
+            option = {
+                tooltip: {
+                    trigger: 'axis',
+                },
+                animation:false,
+                legend: {},
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    min:1,
+                    max:1000,
+                    axisLabel:{
+                      interval:99,
+                      rotate:60
+                    },
+                    data: xarr
+                },
+                yAxis: {
+                    type: 'value',
+                    min:-1,
+                    max:1
+                },
+                visualMap:[],
+                series: [
+                    {
+                        name:'aaa',
+                        type:'line',
+                        data:yarr,
+                    }
+                ]
+            }
+            myChart.setOption(option);
+           }
+        function reset(){
+            dragflag=false
+            lastitem=null
+            firstitem=null
+            clearTimeout(timer)
+        }
+        function getStraightY(startx,starty,endx,endy,currentx){//获取直线上任意点的坐标
+            return starty+(currentx-startx)*(endy-starty)/(endx-startx)
+        }
+        function changetoFree(){
+            isFreeline=true
+        } 
+        function changetoStraight(){
+            isFreeline=false
+        }
+        function selectStart(){
+            startSelect=true
+            copydata=[]
+        }
+        function cancleSelect(){//取消选择
+            startSelect=false
+            vismap={
+                    show:false,
+                    dimension:0,
+                    seriesIndex:0,
+                    pieces:[
+                        {
+                            lte:1000,
+                            gt:0,
+                            color:'rgb(92,123,217)'
+                        }
+                    ]
+            }
+            let option=myChart.getOption()
+            option.visualMap=vismap
+            myChart.setOption(option);
+
+        }
+        function copyselect(){//将选择的数据记录下来
+            if (startSelect) {
+                let option=myChart.getOption()
+                for(let i=option.visualMap[0].pieces[0].gt;i<=option.visualMap[0].pieces[0].lte;i++){
+                    copydata.push(option.series[0].data[i])
+                }
+            }
+        }
+        function pasteStart(){
+            pasteflag=true
+        }
+        function reverse(){//将选择的数据进行翻转
+            copyselect()
+            let option=myChart.getOption()
+            for(let i=option.visualMap[0].pieces[0].gt;i<=option.visualMap[0].pieces[0].lte;i++){
+                option.series[0].data[i]=-copydata[i-option.visualMap[0].pieces[0].gt]    
+            }
+            myChart.setOption(option);
+            cancleSelect()
+            reset()
+        }
+    </script>
+</body>
+</html>
