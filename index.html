@@ -258,6 +258,10 @@
         }
         function reverse(){//将选择的数据进行翻转
             copyselect()
+            if(copydata.length==0){
+                alert('请先选择翻转的线段')
+                return;
+            }
             let option=myChart.getOption()
             for(let i=option.visualMap[0].pieces[0].gt;i<=option.visualMap[0].pieces[0].lte;i++){
                 option.series[0].data[i]=-copydata[i-option.visualMap[0].pieces[0].gt]    
