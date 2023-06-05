@@ -24,6 +24,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js"></script>
     <script>
         var myChart
+        var chartlength=70000//x轴最大长度，可根据需求修改
+        var scaler=10/7//展示的刻度百分比,可根据需求修改
+        var interval=1000//刻度间隔，可根据需求修改
         var isFreeline=false//自由线还是直线
         var selectBtnflag=false//是否点击了选择按钮,点击后无法画线
         var startSelectflag=false//选择的操作是否开始
@@ -55,6 +58,9 @@
             if (!selectBtnflag) {//没开启选择,正常的点击修改
                 let point=[params.offsetX,params.offsetY]
                 let item=myChart.convertFromPixel({seriesIndex:0},point)
+                if (item[1]<-1) {//范围外数据，需要忽略
+                    return;
+                }
                 let option=myChart.getOption()
                 option.series[0].data[item[0]-1]=item[1]
                 myChart.setOption(option);
@@ -79,6 +85,10 @@
                     dragflag=true
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point) 
+                    if (item[1]<-1) {//范围外数据，需要忽略
+                        dragflag=false
+                        return;
+                    }
                     firstitem=item
                 },200)
             }else{//点击了选择按钮
@@ -87,6 +97,10 @@
                     let option=myChart.getOption()
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point) 
+                    if (item[1]<-1) {//范围外数据，需要忽略
+                        dragflag=false
+                        return;
+                    }
                     piece.gt=item[0]//添加开始的标记
                     origingt=item[0]
                 },200)
@@ -99,6 +113,10 @@
                 if (dragflag) {//画自由线
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point) 
+                    if (item[1]<-1) {//范围外数据，需要忽略
+                        dragflag=false
+                        return;
+                    }
                     let option=myChart.getOption()
                     if (isFreeline) {//如果是自由线
                         option.series[0].data[item[0]-1]=item[1]
@@ -136,6 +154,10 @@
                     let option=myChart.getOption()
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point)
+                    if (item[1]<-1) {//范围外数据，需要忽略
+                        dragflag=false
+                        return;
+                    }
                     if (item[0]<origingt) {
                         piece.lte=origingt
                         piece.gt=item[0]
@@ -171,7 +193,7 @@
             myChart = echarts.init(document.getElementById('mychart'));
             let xarr=[]
             let yarr=[]
-            for(let i=0;i<=1000;i++){
+            for(let i=0;i<=chartlength;i++){
                 xarr.push(i)
                 yarr.push(0)
             }
@@ -188,13 +210,25 @@
                     bottom: '10%',
                     containLabel: true
                 },
+                dataZoom: [//数据量较大时的刻度尺
+                    {
+                      type: 'inside',
+                      disabled:true,//禁用在图表上拖拽滑动
+                      start: 0,
+                      end: scaler
+                    },
+                    {
+                      start: 0,
+                      end: scaler
+                    }
+                ],
                 xAxis: {
                     type: 'category',
                     boundaryGap: false,
                     min:1,
-                    max:1000,
+                    max:chartlength,
                     axisLabel:{
-                      interval:99,
+                      interval:interval-1,
                       rotate:60
                     },
                     data: xarr
@@ -245,7 +279,7 @@
                     seriesIndex:0,
                     pieces:[
                         {
-                            lte:1000,
+                            lte:chartlength,
                             gt:0,
                             color:'rgb(92,123,217)'
                         }
