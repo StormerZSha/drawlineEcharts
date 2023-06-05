@@ -58,7 +58,7 @@
             if (!selectBtnflag) {//没开启选择,正常的点击修改
                 let point=[params.offsetX,params.offsetY]
                 let item=myChart.convertFromPixel({seriesIndex:0},point)
-                if (item[1]<-1) {//范围外数据，需要忽略
+                if (item[1]<-1||item[1]>1) {//范围外数据，需要忽略
                     return;
                 }
                 let option=myChart.getOption()
@@ -85,7 +85,7 @@
                     dragflag=true
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point) 
-                    if (item[1]<-1) {//范围外数据，需要忽略
+                    if (item[1]<-1||item[1]>1) {//范围外数据，需要忽略
                         dragflag=false
                         return;
                     }
@@ -97,7 +97,7 @@
                     let option=myChart.getOption()
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point) 
-                    if (item[1]<-1) {//范围外数据，需要忽略
+                    if (item[1]<-1||item[1]>1) {//范围外数据，需要忽略
                         dragflag=false
                         return;
                     }
@@ -113,7 +113,7 @@
                 if (dragflag) {//画自由线
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point) 
-                    if (item[1]<-1) {//范围外数据，需要忽略
+                    if (item[1]<-1||item[1]>1) {//范围外数据，需要忽略
                         dragflag=false
                         return;
                     }
@@ -154,7 +154,7 @@
                     let option=myChart.getOption()
                     let point=[params.offsetX,params.offsetY]
                     let item=myChart.convertFromPixel({seriesIndex:0},point)
-                    if (item[1]<-1) {//范围外数据，需要忽略
+                    if (item[1]<-1||item[1]>1) {//范围外数据，需要忽略
                         dragflag=false
                         return;
                     }
